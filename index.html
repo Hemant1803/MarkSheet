@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Marksheet Generator</title>
+<style>
+/* ================= App chrome =================
+   Layout: a frosted tool bar over a graph-paper "desk"; the A4 marksheet sits on it like a sheet of paper. */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
+:root{
+  --bg:#edf0f6; --grid:rgba(39,71,168,.055); --panel:#ffffff; --bar:rgba(255,255,255,.80); --tray:#f1f3f9;
+  --ink:#172033; --muted:#5a6479; --line:#d8deea; --line-strong:#c3cbdb;
+  --accent:#2747a8; --accent-2:#4566d6; --accent-ink:#ffffff; --accent-soft:#e7ecfb;
+  --ok:#11795a; --err:#c2362b; --warn:#a35f00; --err-soft:#fdecea;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.06); --shadow-md:0 6px 18px -8px rgba(16,24,40,.25);
+  --font-ui:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e131c; --grid:rgba(143,168,255,.05); --panel:#171e2a; --bar:rgba(20,26,37,.82); --tray:#121823;
+    --ink:#e7ebf3; --muted:#98a3b8; --line:#2a3446; --line-strong:#3a465c;
+    --accent:#7f9cf5; --accent-2:#a3b8ff; --accent-ink:#0b1020; --accent-soft:#1e2942;
+    --ok:#3ccf9a; --err:#ff7a6e; --warn:#f0b35a; --err-soft:#3a1d1c;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 8px 22px -8px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e131c; --grid:rgba(143,168,255,.05); --panel:#171e2a; --bar:rgba(20,26,37,.82); --tray:#121823;
+  --ink:#e7ebf3; --muted:#98a3b8; --line:#2a3446; --line-strong:#3a465c;
+  --accent:#7f9cf5; --accent-2:#a3b8ff; --accent-ink:#0b1020; --accent-soft:#1e2942;
+  --ok:#3ccf9a; --err:#ff7a6e; --warn:#f0b35a; --err-soft:#3a1d1c;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 8px 22px -8px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background-color:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px, transparent 1px),linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;background-attachment:fixed;
+  color:var(--ink);font:500 14px/1.45 var(--font-ui);-webkit-font-smoothing:antialiased;min-height:100vh
+}
+
+/* ---------- top bar ---------- */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;justify-content:flex-end;background:var(--bar);
+  -webkit-backdrop-filter:saturate(1.5) blur(14px);backdrop-filter:saturate(1.5) blur(14px);
+  border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm);
+  padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.brand{margin-right:auto;display:flex;align-items:center;gap:10px;white-space:nowrap;min-width:0}
+.brand-mark{width:36px;height:36px;border-radius:10px;flex:none;display:grid;place-items:center;color:#fff;
+  background:linear-gradient(140deg,var(--accent-2),var(--accent));box-shadow:0 6px 14px -6px var(--accent)}
+.brand-txt{display:flex;flex-direction:column;line-height:1.15}
+.brand-name{font-weight:800;font-size:16px;letter-spacing:-.01em}
+.brand-sub{font-size:11.5px;color:var(--muted);font-weight:600;letter-spacing:.02em}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--tray);border:1px solid var(--line);border-radius:14px;padding:5px}
+.grp>label{display:none;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:0 4px 0 8px}
+
+/* ---------- controls ---------- */
+button,select{font:600 13.5px/1 var(--font-ui);color:var(--ink)}
+button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 12px;border-radius:10px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,background-color .15s ease,color .15s ease}
+button svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+button:hover{border-color:var(--line-strong);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+button:active{transform:translateY(0);box-shadow:var(--shadow-sm)}
+button:focus-visible,select:focus-visible,.switch input:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+button.primary{color:var(--accent-ink);border-color:transparent;font-weight:700;
+  background:linear-gradient(180deg,var(--accent-2),var(--accent));box-shadow:0 8px 18px -8px var(--accent),inset 0 1px 0 rgba(255,255,255,.18)}
+button.primary:hover{box-shadow:0 12px 24px -10px var(--accent),inset 0 1px 0 rgba(255,255,255,.18);border-color:transparent}
+button.danger:hover,button.danger.armed{color:var(--err);border-color:var(--err);background:var(--err-soft)}
+button.ghost{background:transparent;box-shadow:none;border-color:transparent}
+button.ghost:hover{background:var(--panel);border-color:var(--line)}
+button:disabled{opacity:.55;cursor:progress;transform:none;box-shadow:none}
+.selwrap{position:relative;display:inline-flex;min-width:0}
+.selwrap::after{content:"";position:absolute;right:13px;top:50%;width:7px;height:7px;margin-top:-5px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);pointer-events:none}
+select{-webkit-appearance:none;appearance:none;min-height:38px;max-width:230px;width:100%;padding:0 36px 0 12px;border-radius:10px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-sm);text-overflow:ellipsis}
+select:hover{border-color:var(--line-strong)}
+
+.is-web .pc-only,.is-web #btnPrint,.is-web #btnFolder{display:none!important}
+html:not(.is-web) .web-only{display:none!important}
+[hidden]{display:none!important}
+
+/* ---------- save-all chooser ---------- */
+.allpanel{max-width:1100px;margin:14px 16px 0;padding:14px;border-radius:16px;
+  background:linear-gradient(180deg,var(--accent-soft),var(--panel));border:1px solid var(--line);box-shadow:var(--shadow-md);
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+@media (min-width:1132px){.allpanel{margin-inline:auto}}
+.allpanel .ap-t{margin-right:6px;font-weight:700}
+.allpanel .ap-note{flex-basis:100%;font-size:12.5px;color:var(--muted)}
+
+/* ---------- status row ---------- */
+.info{max-width:1100px;margin:14px auto 0;padding-inline:16px;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;font-size:13px;color:var(--muted)}
+.info b{color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:8px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow-sm);min-width:0}
+.chip.soft{background:transparent;border-color:transparent;box-shadow:none;color:var(--muted);padding-inline:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;box-shadow:0 0 0 3px color-mix(in srgb, var(--muted) 20%, transparent)}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent)}
+.calc-toggle{cursor:pointer;user-select:none}
+.switch{position:relative;display:inline-flex;flex:none}
+.switch input{-webkit-appearance:none;appearance:none;margin:0;width:34px;height:20px;border-radius:999px;background:var(--line-strong);cursor:pointer;transition:background-color .2s ease}
+.switch input::before{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .2s ease}
+.switch input:checked{background:var(--ok)}
+.switch input:checked::before{transform:translateX(14px)}
+
+/* ---------- help ---------- */
+.help{max-width:1100px;margin:10px auto 0;padding-inline:16px;font-size:13px;color:var(--muted)}
+.help details{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 14px;box-shadow:var(--shadow-sm)}
+.help summary{cursor:pointer;color:var(--ink);font-weight:700;list-style:none;display:flex;align-items:center;gap:8px;padding:11px 0}
+.help summary::-webkit-details-marker{display:none}
+.help summary .q{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--accent-soft);color:var(--accent)}
+.help summary::after{content:"";margin-left:auto;width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s ease}
+.help details[open] summary::after{transform:rotate(-135deg)}
+.help details[open]{padding-bottom:12px}
+.help ol{margin:2px 0 8px;padding-left:20px;display:grid;gap:6px;max-width:80ch}
+.help b{color:var(--ink)}
+
+/* ---------- desk + sheet ---------- */
+.stage{padding:20px 16px 56px;overflow-x:auto}
+.fitbox{margin:0 auto;position:relative}
+.scaler{transform-origin:0 0;width:210mm;height:297mm;border-radius:2px;
+  box-shadow:0 1px 2px rgba(16,24,40,.10),0 4px 10px -2px rgba(16,24,40,.10),0 28px 60px -18px rgba(16,24,40,.35)}
+
+/* ---------- toasts ---------- */
+#toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:calc(100% - 32px);max-width:560px}
+.t-msg{background:#1b2333;color:#fff;padding:11px 16px;border-radius:12px;font-size:13.5px;line-height:1.45;font-weight:500;
+  box-shadow:0 14px 34px -10px rgba(0,0,0,.45);pointer-events:auto;animation:tin .22s ease-out}
+.t-msg.ok{background:#0f6b4f}.t-msg.err{background:#b42318}.t-msg.warn{background:#8a5300}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+#render-host{position:fixed;left:-20000px;top:0;width:210mm;pointer-events:none}
+#print-host{display:none}
+@media (max-width:640px){
+  .bar{padding:10px 12px}
+  .brand{width:100%}
+  .grp{width:100%}
+  .grp>button{flex:1 1 auto}
+  .selwrap{flex:1 1 100%}
+  select{max-width:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ================= Marksheet (paper) ================= */
+.sheet{width:210mm;height:297mm;background:#fff;color:#000;padding:7mm;overflow:hidden;position:relative;
+  font-family:Arial,"Liberation Sans",Helvetica,sans-serif;font-size:10pt;line-height:1.2;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sheet *{box-sizing:border-box}
+.frame{height:100%;border:4.5px double #000;padding:4mm 5mm 4mm;display:flex;flex-direction:column}
+.head{display:flex;align-items:center;gap:3mm;height:25mm;flex:none;border-bottom:1.5px solid #000;padding-bottom:2mm}
+.logo-wrap{width:27mm;height:21mm;flex:none;display:flex;align-items:center;justify-content:center}
+.logo{max-width:27mm;max-height:21mm;display:block;filter:grayscale(1)}
+.logo-ph{width:100%;height:100%;border:1px dashed #888;color:#555;display:flex;align-items:center;justify-content:center;font-size:8pt;text-align:center}
+.school{flex:1;min-width:0;text-align:center}
+.sname{font-size:20pt;font-weight:700;color:#000;letter-spacing:.4px}
+.trust{font-size:10.5pt;font-weight:700;color:#000;margin-top:1.6mm}
+.band{flex:none;margin:3mm 0;background:#fff;color:#000;border:1.5px solid #000;font-weight:700;font-size:12.5pt;letter-spacing:.8px;height:8.5mm;display:flex;align-items:center;justify-content:center;gap:1.6mm}
+.band .bt{white-space:nowrap;flex:none}
+.band .v{display:inline;padding:0;white-space:nowrap}
+
+table.t{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed;border-top:1px solid #000;border-left:1px solid #000}
+table.t th,table.t td{border-right:1px solid #000;border-bottom:1px solid #000;padding:0 1.2mm;vertical-align:middle;overflow:hidden}
+table.det{flex:none;margin-top:3mm}
+table.det th{background:#fff;color:#000;text-align:left;font-weight:700;font-size:9.5pt;height:6.6mm;white-space:nowrap}
+table.det td{font-weight:700;font-size:10.5pt;height:6.6mm;white-space:nowrap}
+
+.cols{flex:1;min-height:0;display:flex;gap:4mm;overflow:hidden}
+.cols>.left{flex:1;min-width:0}
+.cols>.right{width:64mm;flex:none;display:flex;flex-direction:column;gap:3mm}
+table.scho{font-size:9.5pt;--rh:5.4mm}
+table.scho td{height:var(--rh);white-space:nowrap}
+.h1{background:#fff;color:#000;font-weight:700;font-size:9pt;text-align:center;padding:1.2mm 1mm!important;letter-spacing:.3px}
+.h2{background:#fff;color:#000;font-weight:700;font-size:8.6pt;text-align:center;padding:1mm!important}
+.h3{background:#fff;color:#000;font-weight:400;font-size:8.4pt;text-align:center;height:5mm}
+.sm{font-size:7.8pt;font-weight:400}
+td.code{text-align:center;font-weight:700;color:#000;background:#fff;vertical-align:top!important;padding-top:1mm!important}
+tr.srow td.sn{background:#fff;font-weight:700;color:#000;text-align:center;letter-spacing:.3px}
+td.pn{text-align:left}
+tr.tr td.pn{font-weight:700}
+td.gc{text-align:center;font-weight:700}
+td.tot{background:#fff}
+td.na{background:#fff}
+table.cos,table.scale{font-size:9pt}
+table.cos td,table.scale td{height:5.1mm;white-space:nowrap}
+table.scale td{text-align:center}
+.overall{flex:1;min-height:16mm;border:1px solid #000;display:flex;flex-direction:column}
+.overall .ol{background:#fff;color:#000;border-bottom:1px solid #000;font-weight:700;font-size:9.5pt;text-align:center;padding:1.4mm 0;letter-spacing:.5px}
+.overall .og{flex:1;display:flex;align-items:center;justify-content:center;font-size:26pt;font-weight:700;color:#000;background:#fff}
+.overall .og .v,.overall .og input.f{text-align:center;width:100%}
+
+.box{flex:none;display:flex;border:1px solid #000;margin-top:3mm;height:13.5mm}
+.box .bl{width:32mm;flex:none;background:#fff;color:#000;font-weight:700;font-size:9.5pt;padding:0 2mm;border-right:1px solid #000;display:flex;align-items:center}
+.box .bv{flex:1;min-width:0;padding:1.2mm 1.5mm;font-weight:700;font-size:10pt;display:flex}
+.box .bv>*{flex:1;height:100%}
+.signs{flex:none;margin-top:auto;height:19mm;display:flex;justify-content:space-between;align-items:flex-end;padding:0 4mm}
+.sig{width:58mm;border-top:1px solid #000;text-align:center;padding-top:1.4mm;font-weight:700;font-size:9.5pt;color:#000}
+
+/* values (clean / print / PDF) */
+.sheet .v{display:block;overflow:hidden;white-space:nowrap;padding:0 .8mm;min-height:1.2em}
+.sheet .v.ta{white-space:pre-wrap;overflow:hidden;line-height:1.25}
+.sheet th .v{white-space:normal}
+/* inputs (editing on screen only) */
+.sheet input.f,.sheet textarea.f{font:inherit;color:inherit;letter-spacing:inherit;text-align:inherit;display:block;width:100%;margin:0;
+  border:0;border-bottom:1px dashed #999;background:#f3f3f3;padding:0 .8mm;outline:none;border-radius:0;height:1.5em}
+.sheet textarea.f{resize:none;height:100%;line-height:1.25;padding:.3mm .8mm}
+.sheet input.f:focus,.sheet textarea.f:focus{background:#e8e8e8;box-shadow:inset 0 0 0 1.5px #000}
+.sheet input[type=date].f{padding-right:0}
+.sheet input.f.calc{background:transparent;border-bottom-color:transparent;cursor:default}
+.sheet input.f.calc:focus{box-shadow:none}
+.sheet input.f.bad,.sheet textarea.f.bad{background:#ffe3e3;border-bottom:1.5px solid #c62828;box-shadow:inset 0 0 0 1.5px #c62828}
+.sheet input.g::-webkit-calendar-picker-indicator{display:none!important}
+.sheet .band input.f{width:30mm;flex:none;display:inline-block;text-align:left}
+.sheet .h2 input.f{font-size:7.4pt;padding:0}
+.sheet input.f::placeholder,.sheet textarea.f::placeholder{color:#999;font-weight:400}
+.sheet [data-act=logo]{cursor:pointer}
+.sheet [data-act=logo]:hover{outline:1.5px dashed #000;outline-offset:1px}
+
+/* ================= Print ================= */
+@page{size:A4 portrait;margin:0}
+@media print{
+  html,body{background:#fff!important}
+  body>*:not(#print-host):not(#render-host){display:none!important}
+  #print-host{display:block!important}
+  #print-host .sheet{box-shadow:none;page-break-after:always;break-after:page}
+  #print-host .sheet:last-child{page-break-after:auto;break-after:auto}
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="brand">
+    <div class="brand-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></div>
+    <div class="brand-txt"><span class="brand-name">Marksheet Generator</span><span class="brand-sub">A4 report cards · PDF</span></div>
+  </div>
+  <div class="grp">
+    <label for="stuSel">Student</label>
+    <span class="selwrap"><select id="stuSel" aria-label="Select student"></select></span>
+    <button id="btnNew" title="Add a new blank student (same subjects)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="bl">New</span></button>
+    <button id="btnImport" title="Import one or more .xlsx files (one student per sheet, or a list)"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span class="bl">Import Excel</span></button>
+    <button id="btnDel" class="danger" title="Delete this student"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg><span class="bl">Delete</span></button>
+  </div>
+  <div class="grp">
+    <button id="btnSave" class="primary" title="Ctrl/Cmd + S"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 12v6M9 15l3 3 3-3"/></svg><span class="bl">Generate &amp; Save PDF</span></button>
+    <button id="btnPrint" title="Print this marksheet"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg><span class="bl">Print</span></button>
+    <button id="btnSaveAll" title="Generate PDFs for every student"><svg viewBox="0 0 24 24"><path d="M8 3h9l4 4v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M3 7v12a2 2 0 0 0 2 2h10"/></svg><span class="bl">Save All PDFs</span></button>
+    <button id="btnZoom" title="Switch between fit-to-screen and full size"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg><span class="bl">Zoom In</span></button>
+    <button id="btnFolder" title="Choose where the Marksheets folder lives"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="bl">Choose Folder</span></button>
+  </div>
+  <input type="file" id="fileXlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
+  <input type="file" id="fileLogo" accept="image/*" hidden>
+</header>
+
+<div class="allpanel" id="allPanel" hidden>
+  <span class="ap-t">Save all <b id="allCount">0</b> marksheets as:</span>
+  <button id="allSeparate">Separate PDFs in one folder</button>
+  <button id="allCombined" class="primary">One combined PDF</button>
+  <button id="allCancel" class="ghost">Cancel</button>
+  <span class="ap-note pc-only">Separate: <b>Marksheets/All Marksheets/&lt;Adm No&gt;.pdf</b> · Combined: <b>Marksheets/All_Marksheets.pdf</b></span>
+  <span class="ap-note web-only">Separate: one ZIP with a <b>Marksheets</b> folder · Combined: <b>All_Marksheets.pdf</b>, one student per page</span>
+</div>
+<div class="info">
+  <span class="chip"><span class="dot" id="folderDot"></span><span id="folderInfo">Checking browser…</span></span>
+  <label class="chip calc-toggle"><span class="switch"><input type="checkbox" id="autoCalc" role="switch"></span>Auto-calculate TERM 1, TOTAL &amp; Overall</label>
+  <span class="chip soft" id="countInfo"></span>
+  <span class="chip soft" id="saveInfo"></span>
+</div>
+<div class="help">
+  <details>
+    <summary><span class="q">?</span>How to use</summary>
+    <ol>
+      <li>Fill or edit the shaded fields directly on the marksheet (or click <b>Import Excel</b> to load students from your .xlsx file). Click the logo to change it.</li>
+      <li>Shortcut: type <b>AA</b> for <b>A+</b> and <b>BB</b> for <b>B+</b> (works in the Excel file too).</li>
+      <li>Enter only the <b>FA1</b> and <b>SA1</b> grades (and ART). <b>TERM 1</b> = average of FA1 and SA1, <b>TOTAL</b> = average of the three TERM 1 grades, <b>Overall Grade</b> = average of all subject totals; an exact half goes to the lower grade. Untick <i>Auto-calculate</i> to type them yourself.</li>
+      <li>Before saving, every field is checked: all student details and grades must be filled, the <b>Admission No.</b> must be unique, and the <b>Roll No.</b> must be unique within the same Class / Section. Problems are shown in a red message and the fields turn red.</li>
+      <li class="pc-only">Click <b>Generate &amp; Save PDF</b>. The first time, pick a folder (for example <i>Documents</i>) — a <b>Marksheets</b> folder is created inside it and every PDF is saved as <b>Marksheets/&lt;Admission No&gt;/&lt;Admission No&gt;.pdf</b>. Later saves go there automatically.</li>
+      <li class="pc-only"><b>Save All PDFs</b> does every student in one go — as separate PDFs in one folder, or as one combined PDF (one student per page). <b>Print</b> opens the print dialog with only the A4 marksheet.</li>
+      <li class="web-only">Tap <b>Generate &amp; Save PDF</b> and confirm the download — the file is named <b>&lt;Admission No&gt;.pdf</b>. <b>Save All PDFs</b> gives either one combined PDF (one student per page) or a ZIP with all PDFs in one <b>Marksheets</b> folder. On iPhone, choose <i>Save to Files</i>.</li>
+    </ol>
+    <span class="pc-only">Everything you type is kept in this browser automatically. Automatic folder saving needs Google Chrome or Microsoft Edge on a computer; in other browsers the PDF downloads as <b>&lt;Admission No&gt;.pdf</b> and "Save All" downloads a ZIP with the same folder structure.</span>
+    <span class="web-only">Everything you type is kept on this device in this browser.</span>
+  </details>
+</div>
+
+<main class="stage" id="stage">
+  <div class="fitbox" id="fitbox"><div class="scaler" id="scaler"></div></div>
+</main>
+
+<datalist id="gl"><option value="A+"><option value="A"><option value="B+"><option value="B"><option value="C"><option value="D"><option value="E"></datalist>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="render-host" aria-hidden="true"></div>
+<div id="print-host"></div>
+
+<script>
+'use strict';
+const IN_ARTIFACT = false; /*__MODE__*/
+if(IN_ARTIFACT){ document.documentElement.classList.add('is-web'); }
+/* =====================================================================
+   Defaults (taken from the reference Excel "PRAGATI MAM.xlsx")
+   ===================================================================== */
+const LOGO = 'data:image/jpeg;base64,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';
+const DEFAULT_SETTINGS = {
+  autoCalc: true,
+  school: 'INFINITY LEARNING PLAY SCHOOL',
+  trust: 'Run by :- Infinity Managing Committee Trust',
+  logo: LOGO,
+  cosTitle: 'CO-SCHOLASTIC AREA',
+  cosSub: '(3 Points Grading Scale A, B, C)',
+  scale: [
+    {grade:'A+', marks:'227-250', scale:'91% - 100%'},
+    {grade:'A',  marks:'203-226', scale:'81% - 90%'},
+    {grade:'B+', marks:'178-202', scale:'71% - 80%'},
+    {grade:'B',  marks:'153-177', scale:'61% - 70%'},
+    {grade:'C',  marks:'128-152', scale:'51% - 60%'},
+    {grade:'D',  marks:'103-127', scale:'41% - 50%'},
+    {grade:'E',  marks:'Below 102', scale:'Below 40%'}
+  ]
+};
+const P3 = (w,o,n) => [
+  {name:'Written', fa:w[0], sa:w[1], term:w[2]},
+  {name:'Oral (Speaking/Reading)', fa:o[0], sa:o[1], term:o[2]},
+  {name:'Notebook+Assessment', fa:n[0], sa:n[1], term:n[2]}
+];
+const SEED = {
+  admNo:'ADM001', name:'SAMPLE STUDENT', dob:'2020-01-01', father:'SAMPLE FATHER', mother:'SAMPLE MOTHER',
+  classSec:'UKG', rollNo:'1', term:'TERM - 1',
+  heads:{fa:'FA1', sa:'SA1', term:'FA1+SA1/2 = TERM 1', faMax:'30', saMax:'70', termMax:'(30+70)/2'},
+  subjects:[
+    {name:'ENGLISH', parts:P3(['B+','A','B+'],['B','A','B+'],['B+','A','B+']), total:'B+'},
+    {name:'HINDI',   parts:P3(['B+','A+','A'],['B+','A+','B+'],['B+','A','B+']), total:'A'},
+    {name:'MATHS',   parts:P3(['A','A','A'],['A','B+','B'],['B+','A','B+']), total:'A'},
+    {name:'GK',      parts:P3(['A','A','A'],['B+','B+','C'],['B+','A','B+']), total:'A'},
+    {name:'ART',     parts:[], total:'A+'}
+  ],
+  cos:[
+    {domain:'Discipline', grade:'A'}, {domain:'Attitude & Values', grade:'A'},
+    {domain:'Personal Hygiene', grade:'A'}, {domain:'Games & Sports', grade:'A'},
+    {domain:'Behaviour towards Peer', grade:'A'}, {domain:'Attendance', grade:''}
+  ],
+  overall:'A+',
+  participated:'INDEPENDENCE DAY, JANMASHTAMI AND GANDHI JAYANTI',
+  remarks:'GOOD PROGRESS KEEP WORKING HARD'
+};
+
+/* =====================================================================
+   State + persistence (browser storage, wrapped in try/catch)
+   ===================================================================== */
+const clone = o => JSON.parse(JSON.stringify(o));
+const LS_KEY = 'marksheet-generator-v1';
+let settings = clone(DEFAULT_SETTINGS);
+let students = [clone(SEED)];
+let cur = 0;
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    if(d && Array.isArray(d.students) && d.students.length){
+      settings = Object.assign(clone(DEFAULT_SETTINGS), d.settings||{});
+      students = d.students.map(normStudent);
+      cur = Math.min(Math.max(0, d.cur|0), students.length-1);
+    }
+  }catch(e){ console.warn('load failed', e); }
+}
+let saveTimer = null;
+function saveState(now){
+  clearTimeout(saveTimer);
+  const go = () => {
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify({settings, students, cur}));
+      $('#saveInfo').textContent = 'All changes saved in this browser';
+    }catch(e){ $('#saveInfo').textContent = 'Could not save in browser storage'; }
+  };
+  if(now) go(); else { $('#saveInfo').textContent = 'Saving…'; saveTimer = setTimeout(go, 400); }
+}
+function normStudent(s){
+  const b = blankFrom(SEED);
+  const o = Object.assign(b, s||{});
+  o.heads = Object.assign(clone(SEED.heads), (s&&s.heads)||{});
+  if(!Array.isArray(o.subjects)) o.subjects = clone(b.subjects);
+  if(!Array.isArray(o.cos)) o.cos = clone(b.cos);
+  return o;
+}
+/* blank student that keeps the subject / domain structure of `src` */
+function blankFrom(src){
+  return {
+    admNo:'', name:'', dob:'', father:'', mother:'', classSec: src.classSec||'', rollNo:'', term: src.term||'TERM - 1',
+    heads: clone(src.heads||SEED.heads),
+    subjects: (src.subjects||SEED.subjects).map(s => ({name:s.name, parts:(s.parts||[]).map(p=>({name:p.name, fa:'', sa:'', term:''})), total:''})),
+    cos: (src.cos||SEED.cos).map(c => ({domain:c.domain, grade:''})),
+    overall:'', participated:'', remarks:''
+  };
+}
+
+/* =====================================================================
+   Helpers
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const setLabel = (sel, txt) => { const b = document.querySelector(sel + ' .bl'); if(b) b.textContent = txt; };
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function fmtDate(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : (iso||'');
+}
+function safeName(s){ return String(s||'').trim().replace(/[\\/:*?"<>|\u0000-\u001f]+/g,'-').replace(/^\.+/,'').slice(0,80); }
+function toast(msg, kind='', ms=3800){
+  const d = document.createElement('div');
+  d.className = 't-msg ' + kind; d.innerHTML = msg;
+  $('#toast').appendChild(d);
+  setTimeout(() => d.remove(), ms);
+  return d;
+}
+function getPath(o, path){ return path.split('.').reduce((a,k) => a==null?a:a[k], o); }
+function setPath(o, path, v){
+  const ks = path.split('.'); let a = o;
+  for(let i=0;i<ks.length-1;i++){ a = a[ks[i]]; if(a==null) return; }
+  a[ks[ks.length-1]] = v;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* =====================================================================
+   Marksheet template — one definition used for editing, print and PDF
+   ===================================================================== */
+function field(ed, k, v, o={}){
+  if(ed){
+    const cls = ['f', o.g&&'g'].filter(Boolean).join(' ');
+    if(o.type==='date') return `<input type="date" class="${cls}" data-k="${k}" value="${esc(v)}" aria-label="${esc(o.label||k)}">`;
+    if(o.ta) return `<textarea class="${cls}" data-k="${k}" rows="2" placeholder="${esc(o.ph||'')}" aria-label="${esc(o.label||k)}">${esc(v)}</textarea>`;
+    if(o.calc) return `<input class="${cls} calc" data-k="${k}" value="${esc(v)}" readonly tabindex="-1" title="Calculated automatically" aria-label="${esc(o.label||k)} (calculated)">`;
+    return `<input class="${cls}" data-k="${k}" value="${esc(v)}"${o.g?' list="gl"':''} placeholder="${esc(o.ph||'')}" aria-label="${esc(o.label||k)}" autocomplete="off" spellcheck="false">`;
+  }
+  const cls = ['v', o.ta&&'ta', o.nofit?'':'fit'].filter(Boolean).join(' ');
+  return `<span class="${cls}">${esc(o.type==='date' ? fmtDate(v) : v)}</span>`;
+}
+
+function sheetHTML(s, st, ed){
+  const F = (k, v, o) => field(ed, k, v, o);
+  const S = (k, v, o) => field(ed, '$.' + k, v, o);   // settings fields
+  let bodyRows = 0;
+  const subj = s.subjects.map((sub, i) => {
+    const p = 'subjects.' + i, code = String.fromCharCode(65 + i);
+    const n = sub.parts.length;
+    if(!n){
+      bodyRows += 1;
+      return `<tr class="srow"><td class="code">${code}</td><td class="sn">${F(p+'.name', sub.name, {label:'Subject'})}</td><td class="na"></td><td class="na"></td><td class="gc tot">${F(p+'.total', sub.total, {g:1, label:sub.name+' grade'})}</td></tr>`;
+    }
+    bodyRows += n + 2;
+    let h = `<tr class="srow"><td class="code" rowspan="${n+2}">${code}</td><td class="sn" colspan="4">${F(p+'.name', sub.name, {label:'Subject'})}</td></tr>`;
+    sub.parts.forEach((pt, j) => {
+      const q = `${p}.parts.${j}`;
+      h += `<tr><td class="pn">${F(q+'.name', pt.name)}</td><td class="gc">${F(q+'.fa', pt.fa, {g:1})}</td><td class="gc">${F(q+'.sa', pt.sa, {g:1})}</td><td class="gc">${F(q+'.term', pt.term, {g:1, calc:AUTO()})}</td></tr>`;
+    });
+    h += `<tr class="tr"><td class="pn">TOTAL</td><td class="na"></td><td class="na"></td><td class="gc tot">${F(p+'.total', sub.total, {g:1, label:sub.name+' total', calc:AUTO()})}</td></tr>`;
+    return h;
+  }).join('');
+
+  const logo = st.logo
+    ? `<img class="logo" src="${st.logo}" alt="School logo">`
+    : (ed ? `<div class="logo-ph">Click to add logo</div>` : '');
+
+  return `<div class="sheet">
+  <div class="frame">
+    <div class="head">
+      <div class="logo-wrap"${ed?' data-act="logo" title="Click to change logo"':''}>${logo}</div>
+      <div class="school">
+        <div class="sname">${S('school', st.school, {ph:'School name', label:'School name'})}</div>
+        <div class="trust">${S('trust', st.trust, {ph:'Trust / address line', label:'Trust line'})}</div>
+      </div>
+      <div class="logo-wrap"></div>
+    </div>
+
+    <table class="t det">
+      <colgroup><col style="width:31mm"><col><col style="width:31mm"><col style="width:40mm"></colgroup>
+      <tr><th>Admission No.</th><td>${F('admNo', s.admNo, {ph:'e.g. ADM001', label:'Admission No'})}</td><th>Class / Section</th><td>${F('classSec', s.classSec, {ph:'e.g. UKG-A', label:'Class / Section'})}</td></tr>
+      <tr><th>Student's Name</th><td>${F('name', s.name, {ph:'Full name', label:"Student's name"})}</td><th>Roll No.</th><td>${F('rollNo', s.rollNo, {label:'Roll No'})}</td></tr>
+      <tr><th>Date of Birth</th><td colspan="3">${F('dob', s.dob, {type:'date', label:'Date of birth'})}</td></tr>
+      <tr><th>Father's Name</th><td colspan="3">${F('father', s.father, {label:"Father's name"})}</td></tr>
+      <tr><th>Mother's Name</th><td colspan="3">${F('mother', s.mother, {label:"Mother's name"})}</td></tr>
+    </table>
+
+    <div class="band"><span class="bt">PROGRESS REPORT OF</span>${F('term', s.term, {nofit:1, label:'Term'})}</div>
+
+    <div class="cols">
+      <div class="left">
+        <table class="t scho" data-rows="${bodyRows}">
+          <colgroup><col style="width:7mm"><col><col style="width:14mm"><col style="width:14mm"><col style="width:27mm"></colgroup>
+          <thead>
+            <tr><th colspan="2" rowspan="2" class="h1">SCHOLASTIC AREA<br><span class="sm">(SUBJECT)</span></th><th colspan="3" class="h1">GRADE</th></tr>
+            <tr><th class="h2">${F('heads.fa', s.heads.fa, {nofit:1})}</th><th class="h2">${F('heads.sa', s.heads.sa, {nofit:1})}</th><th class="h2">${F('heads.term', s.heads.term, {nofit:1})}</th></tr>
+            <tr><th colspan="2" class="h3">Maximum Marks</th><th class="h3">${F('heads.faMax', s.heads.faMax, {nofit:1})}</th><th class="h3">${F('heads.saMax', s.heads.saMax, {nofit:1})}</th><th class="h3">${F('heads.termMax', s.heads.termMax, {nofit:1})}</th></tr>
+          </thead>
+          <tbody>${subj}</tbody>
+        </table>
+      </div>
+      <div class="right">
+        <table class="t cos">
+          <colgroup><col><col style="width:16mm"></colgroup>
+          <thead>
+            <tr><th colspan="2" class="h1">${esc(st.cosTitle)}<br><span class="sm">${S('cosSub', st.cosSub, {nofit:1})}</span></th></tr>
+            <tr><th class="h2">DOMAINS</th><th class="h2">GRADE</th></tr>
+          </thead>
+          <tbody>${s.cos.map((c,i) => `<tr><td class="pn">${F(`cos.${i}.domain`, c.domain)}</td><td class="gc">${F(`cos.${i}.grade`, c.grade, {g:1})}</td></tr>`).join('')}</tbody>
+        </table>
+        <table class="t scale">
+          <colgroup><col style="width:13mm"><col><col style="width:24mm"></colgroup>
+          <thead>
+            <tr><th colspan="3" class="h1">GRADING SCALE</th></tr>
+            <tr><th class="h2">GRADE</th><th class="h2">MARKS</th><th class="h2">SCALE</th></tr>
+          </thead>
+          <tbody>${st.scale.map((r,i) => `<tr><td class="gc">${S(`scale.${i}.grade`, r.grade)}</td><td>${S(`scale.${i}.marks`, r.marks)}</td><td>${S(`scale.${i}.scale`, r.scale)}</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="overall"><div class="ol">OVERALL GRADE</div><div class="og">${F('overall', s.overall, {g:1, label:'Overall grade', calc:AUTO()})}</div></div>
+      </div>
+    </div>
+
+    <div class="box"><div class="bl">Participated In</div><div class="bv">${F('participated', s.participated, {ta:1, ph:'Events / activities', label:'Participated in'})}</div></div>
+    <div class="box"><div class="bl">Remarks</div><div class="bv">${F('remarks', s.remarks, {ta:1, ph:"Teacher's remarks", label:'Remarks'})}</div></div>
+
+    <div class="signs"><div class="sig">Teacher's Signature</div><div class="sig">Principal's Signature</div></div>
+  </div>
+</div>`;
+}
+
+/* fit row height to the available space; shrink text that would overflow */
+function layoutSheet(el, clean){
+  const cols = el.querySelector('.cols'), tbl = el.querySelector('table.scho');
+  const rows = +tbl.dataset.rows || 1;
+  const avail = cols.clientHeight - tbl.tHead.offsetHeight - 2;
+  const rh = Math.max(14, Math.min(27, avail / rows));
+  tbl.style.setProperty('--rh', rh + 'px');
+  if(!clean) return;
+  el.querySelectorAll('.v.fit').forEach(n => {
+    let fs = parseFloat(getComputedStyle(n).fontSize), guard = 0;
+    while((n.scrollWidth > n.clientWidth + 0.5 || n.scrollHeight > n.clientHeight + 0.5) && fs > 6 && guard++ < 40){
+      fs -= 0.5; n.style.fontSize = fs + 'px';
+    }
+  });
+}
+
+
+
+/* =====================================================================
+   Auto-calculation (grades only)
+   Each grade gets points by its place in the grading scale (E = 1 … A+ = 7).
+   TERM 1  = average of FA1 and SA1          ("FA1+SA1/2")
+   TOTAL   = average of the subject's TERM 1 grades
+   OVERALL = average of all subject TOTAL grades
+   An average is rounded to the nearest grade; an exact half goes to the lower grade.
+   ===================================================================== */
+const AUTO = () => settings.autoCalc !== false;
+/* typing shortcut: AA -> A+, BB -> B+ (any doubled letter whose "+" grade exists) */
+function expandGrade(v){
+  const m = /^\s*([A-Za-z])\1\s*$/.exec(v || '');
+  if(!m) return v;
+  const g = m[1].toUpperCase() + '+';
+  return gradeOrder().includes(g) ? g : v;
+}
+function normalizeGrades(s){
+  const f = v => v ? expandGrade(keyOf(v)) : v;
+  s.subjects.forEach(sub => { sub.parts.forEach(pt => { pt.fa = f(pt.fa); pt.sa = f(pt.sa); pt.term = f(pt.term); }); sub.total = f(sub.total); });
+  s.cos.forEach(c => { c.grade = f(c.grade); });
+  s.overall = f(s.overall);
+}
+function gradeOrder(){
+  const g = settings.scale.map(r => keyOf(r.grade)).filter(Boolean);
+  return g.length ? g : DEFAULT_GRADES;          // best first
+}
+function toPoints(v){
+  const order = gradeOrder(), i = order.indexOf(keyOf(v));
+  return i < 0 ? null : order.length - i;
+}
+function fromPoints(x){
+  const order = gradeOrder(), n = order.length;
+  const r = Math.min(n, Math.max(1, Math.ceil(x - 0.5 - 1e-9)));
+  return order[n - r];
+}
+function avgGrade(list){
+  const p = list.map(toPoints);
+  if(!p.length || p.some(v => v == null)) return '';
+  return fromPoints(p.reduce((a, b) => a + b, 0) / p.length);
+}
+function recalc(s){
+  if(!AUTO() || !s) return;
+  s.subjects.forEach(sub => {
+    sub.parts.forEach(pt => { pt.term = avgGrade([pt.fa, pt.sa]); });
+    if(sub.parts.length) sub.total = avgGrade(sub.parts.map(pt => pt.term));
+  });
+  s.overall = avgGrade(s.subjects.map(sub => sub.total));
+}
+/* push calculated values into the on-screen inputs */
+function syncCalc(){
+  const s = students[cur]; if(!s) return;
+  document.querySelectorAll('#scaler input.calc').forEach(el => {
+    const v = getPath(s, el.dataset.k); el.value = v == null ? '' : v;
+  });
+}
+
+/* =====================================================================
+   Validation — required fields, valid grades, unique Admission No,
+   unique Roll No within the same Class / Section
+   ===================================================================== */
+const DEFAULT_GRADES = ['A+','A','B+','B','C','D','E'];
+const keyOf = v => String(v == null ? '' : v).trim().toUpperCase().replace(/\s+/g, ' ');
+const classKey = v => String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+const REQUIRED = [['admNo','Admission No.'], ['name',"Student's Name"], ['dob','Date of Birth'], ['father',"Father's Name"],
+  ['mother',"Mother's Name"], ['classSec','Class / Section'], ['rollNo','Roll No.']];
+const showAllErrors = new WeakSet();     // students whose save was attempted -> highlight everything missing
+function validGrades(){
+  const g = settings.scale.map(r => keyOf(r.grade)).filter(Boolean);
+  return new Set(g.length ? g : DEFAULT_GRADES);
+}
+function whoIs(o){ return o.name ? `${o.name}${o.admNo ? ' (' + o.admNo + ')' : ''}` : (o.admNo || 'another student'); }
+function validateStudent(i){
+  const s = students[i], errs = [];
+  recalc(s);
+  const add = (k, msg, kind) => errs.push({k, msg, kind});
+  REQUIRED.forEach(([k, l]) => { if(!String(s[k] || '').trim()) add(k, `${l} is missing`, 'missing'); });
+  if(String(s.admNo || '').trim()){
+    const j = students.findIndex((o, x) => x !== i && keyOf(o.admNo) === keyOf(s.admNo));
+    if(j >= 0) add('admNo', `Admission No. ${s.admNo} is already used by ${whoIs(students[j])}`, 'dup');
+  }
+  if(String(s.rollNo || '').trim() && String(s.classSec || '').trim()){
+    const j = students.findIndex((o, x) => x !== i && classKey(o.classSec) === classKey(s.classSec) && keyOf(o.rollNo) === keyOf(s.rollNo));
+    if(j >= 0) add('rollNo', `Roll No. ${s.rollNo} is already used in ${s.classSec} by ${whoIs(students[j])}`, 'dup');
+  }
+  const ok = validGrades();
+  const grade = (k, v, label, required) => {
+    const t = keyOf(v);
+    if(!t){ if(required) add(k, `${label} grade is missing`, 'missing'); }
+    else if(!ok.has(t)) add(k, `${label}: "${v}" is not a valid grade`, 'invalid');
+  };
+  s.subjects.forEach((sub, a) => {
+    const p = 'subjects.' + a;
+    sub.parts.forEach((pt, b) => {
+      const q = `${p}.parts.${b}`, nm = `${sub.name} ${pt.name}`;
+      grade(q + '.fa', pt.fa, `${nm} ${s.heads.fa}`, true);
+      grade(q + '.sa', pt.sa, `${nm} ${s.heads.sa}`, true);
+      if(!AUTO()) grade(q + '.term', pt.term, `${nm} Term`, true);
+    });
+    if(!AUTO() || !sub.parts.length) grade(p + '.total', sub.total, `${sub.name} ${sub.parts.length ? 'Total' : ''}`.trim(), true);
+  });
+  s.cos.forEach((c, a) => grade(`cos.${a}.grade`, c.grade, c.domain, false));
+  if(!AUTO()) grade('overall', s.overall, 'Overall', true);
+  return errs;
+}
+function errorList(errs, max = 5){
+  const items = errs.slice(0, max).map(e => '• ' + esc(e.msg));
+  if(errs.length > max) items.push(`• …and ${errs.length - max} more`);
+  return items.join('<br>');
+}
+/* highlight problem fields in the editor */
+function markErrors(){
+  const s = students[cur]; if(!s) return;
+  const all = showAllErrors.has(s);
+  const errs = validateStudent(cur).filter(e => all || e.kind !== 'missing');
+  const byK = {}; errs.forEach(e => { (byK[e.k] = byK[e.k] || []).push(e.msg); });
+  document.querySelectorAll('#scaler [data-k]').forEach(el => {
+    const m = byK[el.dataset.k];
+    el.classList.toggle('bad', !!m);
+    if(m) el.title = m.join('\n'); else el.removeAttribute('title');
+  });
+}
+let markTimer = null;
+const markSoon = () => { clearTimeout(markTimer); markTimer = setTimeout(markErrors, 250); };
+/* returns true when the student can be saved; otherwise shows an error toast */
+function checkBeforeSave(i){
+  const errs = validateStudent(i);
+  if(!errs.length) return true;
+  showAllErrors.add(students[i]);
+  if(i === cur) markErrors();
+  const s = students[i];
+  toast(`<b>Cannot save ${esc(s.admNo || 'this marksheet')} — please fix:</b><br>${errorList(errs)}`, 'err', 10000);
+  const first = document.querySelector(`#scaler [data-k="${errs[0].k}"]`);
+  if(first && i === cur) first.focus();
+  return false;
+}
+
+/* =====================================================================
+   Screen rendering
+   ===================================================================== */
+function render(){
+  const s = students[cur];
+  recalc(s);
+  $('#scaler').innerHTML = sheetHTML(s, settings, true);
+  layoutSheet($('#scaler .sheet'), false);
+  renderSelect();
+  fitStage();
+  markErrors();
+}
+function label(s, i){ return `${s.admNo || '(no Adm No)'} — ${s.name || 'Unnamed'}`; }
+function renderSelect(){
+  const sel = $('#stuSel');
+  sel.innerHTML = students.map((s,i) => `<option value="${i}">${esc(label(s,i))}</option>`).join('');
+  sel.value = String(cur);
+  $('#countInfo').textContent = `${students.length} student${students.length===1?'':'s'}`;
+}
+function fitStage(){
+  const W = 793.7, H = 1122.5;
+  const avail = $('#stage').clientWidth - 32;
+  const fit = Math.min(1, Math.max(0.42, avail / W));
+  const s = zoomed ? 1 : fit;
+  $('#btnZoom').style.display = fit < 0.98 ? '' : 'none';
+  $('#scaler').style.transform = `scale(${s})`;
+  const fb = $('#fitbox'); fb.style.width = (W*s) + 'px'; fb.style.height = (H*s) + 'px';
+}
+let zoomed = false;
+window.addEventListener('resize', fitStage);
+$('#btnZoom').addEventListener('click', () => { zoomed = !zoomed; setLabel('#btnZoom', zoomed ? 'Fit to Screen' : 'Zoom In'); fitStage(); });
+
+/* editing */
+$('#scaler').addEventListener('input', e => {
+  const t = e.target, k = t.dataset && t.dataset.k;
+  if(!k) return;
+  if(t.classList.contains('g')){
+    const up = t.value.toUpperCase(), ex = expandGrade(up);
+    if(ex !== up){ t.value = ex; try{ t.setSelectionRange(ex.length, ex.length); }catch(_){} }
+    else if(up !== t.value){ const p = t.selectionStart; t.value = up; try{ t.setSelectionRange(p,p); }catch(_){} }
+  }
+  if(k.startsWith('$.')) setPath(settings, k.slice(2), t.value);
+  else setPath(students[cur], k, t.value);
+  if(k === 'admNo' || k === 'name'){
+    const opt = $('#stuSel').options[cur]; if(opt) opt.textContent = label(students[cur], cur);
+  }
+  if(AUTO() && !k.startsWith('$.')){ recalc(students[cur]); syncCalc(); }
+  saveState();
+  markSoon();
+});
+/* when the user leaves a field: warn at once about duplicates / bad grades */
+$('#scaler').addEventListener('change', e => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if(!k || k.startsWith('$.')) return;
+  const watch = (k === 'admNo' || k === 'rollNo' || k === 'classSec') ? ['admNo','rollNo'] : [k];
+  const errs = validateStudent(cur).filter(x => watch.includes(x.k) && x.kind !== 'missing');
+  if(errs.length) toast(errorList(errs, 3), 'err', 7000);
+  markErrors();
+});
+$('#scaler').addEventListener('click', e => {
+  if(e.target.closest('[data-act=logo]')) $('#fileLogo').click();
+});
+$('#fileLogo').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  try{ settings.logo = await imageFileToDataURL(f, 700); saveState(true); render(); toast('Logo updated', 'ok'); }
+  catch(err){ toast('Could not read that image', 'err'); }
+});
+function imageFileToDataURL(file, max){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onerror = () => rej(fr.error);
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = rej;
+      img.onload = () => {
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth*k); c.height = Math.round(img.naturalHeight*k);
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,c.width,c.height);
+        x.drawImage(img, 0, 0, c.width, c.height);
+        res(c.toDataURL('image/jpeg', 0.92));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+/* toolbar */
+$('#stuSel').addEventListener('change', e => { cur = +e.target.value; saveState(true); render(); });
+$('#btnNew').addEventListener('click', () => {
+  students.push(blankFrom(students[cur] || SEED)); cur = students.length - 1;
+  saveState(true); render();
+  const a = document.querySelector('#scaler [data-k="admNo"]'); if(a) a.focus();
+  toast('New blank marksheet added — enter the details');
+});
+let delArmed = null;
+$('#btnDel').addEventListener('click', () => {
+  const s = students[cur], btn = $('#btnDel');
+  if(!delArmed){
+    setLabel('#btnDel', 'Tap again to delete'); btn.classList.add('armed');
+    delArmed = setTimeout(() => { delArmed = null; setLabel('#btnDel', 'Delete'); btn.classList.remove('armed'); }, 3500);
+    return;
+  }
+  clearTimeout(delArmed); delArmed = null; setLabel('#btnDel', 'Delete'); btn.classList.remove('armed');
+  toast(`Deleted ${esc(s.name || 'marksheet')} (${esc(s.admNo || 'no Adm No')})`);
+  students.splice(cur, 1);
+  if(!students.length) students.push(blankFrom(s));
+  cur = Math.min(cur, students.length - 1);
+  saveState(true); render();
+});
+$('#btnImport').addEventListener('click', () => $('#fileXlsx').click());
+$('#fileXlsx').addEventListener('change', async e => {
+  const files = Array.from(e.target.files); e.target.value = '';
+  if(files.length) await importFiles(files);
+});
+
+/* =====================================================================
+   Clean render (no inputs) for PDF + print
+   ===================================================================== */
+async function renderClean(s, host){
+  host.insertAdjacentHTML('beforeend', sheetHTML(s, settings, false));
+  const el = host.lastElementChild;
+  await Promise.all(Array.from(el.querySelectorAll('img')).map(im => im.decode ? im.decode().catch(()=>{}) : Promise.resolve()));
+  if(document.fonts && document.fonts.ready) await document.fonts.ready;
+  layoutSheet(el, true);
+  return el;
+}
+
+/* ---------- Print ---------- */
+let printPrepared = false;
+async function doPrint(){
+  const s = students[cur];
+  const rh = $('#render-host'); rh.innerHTML = '';
+  const el = await renderClean(s, rh);
+  const ph = $('#print-host'); ph.innerHTML = ''; ph.appendChild(el);
+  printPrepared = true;
+  const oldTitle = document.title;
+  document.title = safeName(s.admNo) || 'Marksheet';   // default file name in "Save as PDF"
+  window.print();
+  setTimeout(() => { document.title = oldTitle; printPrepared = false; }, 500);
+}
+window.addEventListener('beforeprint', () => {
+  if(printPrepared) return;          // keyboard Ctrl+P: prepare synchronously
+  const rh = $('#render-host'); rh.innerHTML = sheetHTML(students[cur], settings, false);
+  const el = rh.lastElementChild; layoutSheet(el, true);
+  const ph = $('#print-host'); ph.innerHTML = ''; ph.appendChild(el);
+});
+$('#btnPrint').addEventListener('click', doPrint);
+
+/* =====================================================================
+   DOM -> vector PDF (A4). Draws backgrounds, borders, images and text
+   using the exact positions the browser laid out. No external libraries.
+   ===================================================================== */
+function parseColor(str){
+  const m = /rgba?\(([^)]+)\)/.exec(str||''); if(!m) return null;
+  const p = m[1].split(/[\s,\/]+/).filter(Boolean).map(parseFloat);
+  const a = p.length > 3 ? p[3] : 1;
+  if(a <= 0) return null;
+  const mix = v => v*a + 255*(1-a);
+  return {r:mix(p[0]), g:mix(p[1]), b:mix(p[2])};
+}
+const n3 = v => (Math.round(v*1000)/1000).toString();
+const rgbOp = c => `${n3(c.r/255)} ${n3(c.g/255)} ${n3(c.b/255)}`;
+const WINANSI = {0x20AC:0x80,0x201A:0x82,0x0192:0x83,0x201E:0x84,0x2026:0x85,0x2020:0x86,0x2021:0x87,0x02C6:0x88,0x2030:0x89,0x0160:0x8A,0x2039:0x8B,0x0152:0x8C,0x017D:0x8E,0x2018:0x91,0x2019:0x92,0x201C:0x93,0x201D:0x94,0x2022:0x95,0x2013:0x96,0x2014:0x97,0x02DC:0x98,0x2122:0x99,0x0161:0x9A,0x203A:0x9B,0x0153:0x9C,0x017E:0x9E,0x0178:0x9F};
+let unsupportedChars = false;
+function pdfStr(s){
+  let o = '';
+  for(const ch of s){
+    let c = ch.codePointAt(0);
+    if(c === 0xA0) c = 32;
+    if(c >= 0x80 && c <= 0x9F) c = 63;
+    else if(c > 255){ if(WINANSI[c]) c = WINANSI[c]; else { c = 63; unsupportedChars = true; } }
+    if(c === 0x28 || c === 0x29 || c === 0x5C) o += '\\' + String.fromCharCode(c);
+    else if(c < 32) o += ' ';
+    else o += String.fromCharCode(c);
+  }
+  return o;
+}
+const ascCache = {};
+const measureCtx = document.createElement('canvas').getContext('2d');
+function ascentOf(cs){
+  const key = cs.fontStyle + cs.fontWeight + cs.fontSize + cs.fontFamily;
+  if(ascCache[key] != null) return ascCache[key];
+  measureCtx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const m = measureCtx.measureText('Hg');
+  const fs = parseFloat(cs.fontSize);
+  return ascCache[key] = (m.fontBoundingBoxAscent != null ? m.fontBoundingBoxAscent : fs*0.905);
+}
+function b64ToBytes(b64){ const s = atob(b64); const a = new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i] = s.charCodeAt(i); return a; }
+
+const jpegCache = new Map();
+async function imageToJpeg(img){
+  const w0 = img.naturalWidth, h0 = img.naturalHeight;
+  const up = Math.max(1, Math.min(4, Math.ceil(700 / Math.max(w0, 1))));
+  const c = document.createElement('canvas'); c.width = w0*up; c.height = h0*up;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0,0,c.width,c.height);
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+  x.drawImage(img, 0, 0, c.width, c.height);
+  const id = x.getImageData(0, 0, c.width, c.height), px = id.data;
+  for(let i=0;i<px.length;i+=4){ const g = Math.round(px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114); px[i] = px[i+1] = px[i+2] = g; }
+  x.putImageData(id, 0, 0);
+  const url = c.toDataURL('image/jpeg', 0.93);
+  return {w:c.width, h:c.height, bytes:b64ToBytes(url.split(',')[1])};
+}
+
+async function domToPdfPage(el){
+  const R = el.getBoundingClientRect();
+  const PW = 595.28, PH = 841.89, k = PW / R.width;
+  const X = x => n3((x - R.left) * k), Y = y => n3(PH - (y - R.top) * k);
+  let bg = '', bd = '', tx = '', im = '';
+  const images = [];
+  const nodes = [el, ...el.querySelectorAll('*')];
+  for(const n of nodes){
+    const cs = getComputedStyle(n);
+    if(cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const r = n.getBoundingClientRect();
+    if(r.width <= 0 || r.height <= 0) continue;
+    const c = parseColor(cs.backgroundColor);
+    if(c) bg += `${rgbOp(c)} rg ${X(r.left)} ${Y(r.bottom)} ${n3(r.width*k)} ${n3(r.height*k)} re f\n`;
+    for(const side of ['Top','Right','Bottom','Left']){
+      const w = parseFloat(cs['border'+side+'Width']), st = cs['border'+side+'Style'];
+      if(!(w > 0) || st === 'none' || st === 'hidden') continue;
+      const col = parseColor(cs['border'+side+'Color']); if(!col) continue;
+      const seg = (off, th) => {   // off = distance from outer edge
+        let x, y, ww, hh;
+        if(side === 'Top'){ x = r.left; y = r.top + off; ww = r.width; hh = th; }
+        else if(side === 'Bottom'){ x = r.left; y = r.bottom - off - th; ww = r.width; hh = th; }
+        else if(side === 'Left'){ x = r.left + off; y = r.top; ww = th; hh = r.height; }
+        else { x = r.right - off - th; y = r.top; ww = th; hh = r.height; }
+        bd += `${rgbOp(col)} rg ${X(x)} ${Y(y+hh)} ${n3(ww*k)} ${n3(hh*k)} re f\n`;
+      };
+      if(st === 'double' && w >= 3){ seg(0, w/3); seg(w*2/3, w/3); }
+      else if(st === 'dashed' || st === 'dotted'){ /* decorative only on screen */ }
+      else seg(0, w);
+    }
+    if(n.tagName === 'IMG' && n.naturalWidth){
+      let j = jpegCache.get(n.src);
+      if(!j){ j = await imageToJpeg(n); j.key = n.src; jpegCache.set(n.src, j); }
+      const name = 'Im' + images.length; images.push(j);
+      im += `q ${n3(r.width*k)} 0 0 ${n3(r.height*k)} ${X(r.left)} ${Y(r.bottom)} cm /${name} Do Q\n`;
+    }
+  }
+  // text
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  let node;
+  while((node = walker.nextNode())){
+    const t = node.data; if(!/\S/.test(t)) continue;
+    const p = node.parentElement, cs = getComputedStyle(p);
+    if(cs.visibility === 'hidden') continue;
+    const col = parseColor(cs.color) || {r:0,g:0,b:0};
+    const fs = parseFloat(cs.fontSize), bold = (parseInt(cs.fontWeight,10) || 400) >= 600, ital = cs.fontStyle !== 'normal';
+    const font = bold ? (ital ? 'F4' : 'F2') : (ital ? 'F3' : 'F1');
+    const asc = ascentOf(cs);
+    const ls = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing) || 0;
+    const pre = /^pre/.test(cs.whiteSpace);
+    const lines = []; let ln = null;
+    const re = /\S+/g; let m;
+    while((m = re.exec(t))){
+      range.setStart(node, m.index); range.setEnd(node, m.index + m[0].length);
+      const rr = range.getClientRects()[0];
+      if(!rr || rr.width === 0) continue;
+      if(ln && Math.abs(rr.top - ln.top) < 1.5) ln.end = m.index + m[0].length;
+      else { ln = {top:rr.top, left:rr.left, start:m.index, end:m.index + m[0].length}; lines.push(ln); }
+    }
+    for(const L of lines){
+      let s = t.slice(L.start, L.end);
+      if(!pre) s = s.replace(/\s+/g, ' ');
+      if(cs.textTransform === 'uppercase') s = s.toUpperCase();
+      tx += `BT /${font} ${n3(fs*k)} Tf ${rgbOp(col)} rg ${ls ? n3(ls*k) : 0} Tc 1 0 0 1 ${X(L.left)} ${Y(L.top + asc)} Tm (${pdfStr(s)}) Tj ET\n`;
+    }
+  }
+  return {content: bg + im + bd + tx, images};
+}
+
+async function buildPdf(pages, title){
+  if(!Array.isArray(pages)) pages = [pages];
+  const enc = s => { const a = new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i] = s.charCodeAt(i) & 255; return a; };
+  const chunks = []; let len = 0; const offs = [];
+  const push = x => { const b = typeof x === 'string' ? enc(x) : x; chunks.push(b); len += b.length; };
+  const obj = (id, parts) => { offs[id] = len; push(`${id} 0 obj\n`); parts.forEach(push); push('\nendobj\n'); };
+  const canDeflate = 'CompressionStream' in window;
+  const deflate = async str => {
+    const raw = enc(str);
+    if(!canDeflate) return {data: raw, filter: ''};
+    try{
+      const st = new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate'));
+      return {data: new Uint8Array(await new Response(st).arrayBuffer()), filter: '/Filter /FlateDecode '};
+    }catch(e){ return {data: raw, filter: ''}; }
+  };
+  // object ids: 1 catalog, 2 pages, 3-6 fonts, then shared images, then page+content pairs, then info
+  let next = 7;
+  const imgIds = new Map(), imgList = [];
+  pages.forEach(p => p.images.forEach(im => { const k = im.key || im; if(!imgIds.has(k)){ imgIds.set(k, next++); imgList.push(im); } }));
+  const ids = pages.map(() => ({pid: next++, cid: next++}));
+  const infoId = next++;
+  push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  obj(1, ['<< /Type /Catalog /Pages 2 0 R >>']);
+  obj(2, [`<< /Type /Pages /Kids [${ids.map(x => x.pid + ' 0 R').join(' ')}] /Count ${pages.length} >>`]);
+  ['Helvetica','Helvetica-Bold','Helvetica-Oblique','Helvetica-BoldOblique'].forEach((f, i) =>
+    obj(3+i, [`<< /Type /Font /Subtype /Type1 /BaseFont /${f} /Encoding /WinAnsiEncoding >>`]));
+  imgList.forEach(im => obj(imgIds.get(im.key || im), [`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>\nstream\n`, im.bytes, '\nendstream']));
+  for(let i = 0; i < pages.length; i++){
+    const p = pages[i], {pid, cid} = ids[i];
+    const xo = p.images.map((im, j) => `/Im${j} ${imgIds.get(im.key || im)} 0 R`).join(' ');
+    obj(pid, [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R >> /XObject << ${xo} >> >> /Contents ${cid} 0 R >>`]);
+    const c = await deflate(p.content);
+    obj(cid, [`<< /Length ${c.data.length} ${c.filter}>>\nstream\n`, c.data, '\nendstream']);
+  }
+  const d = new Date(), pad = v => String(v).padStart(2,'0');
+  const ds = `D:${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  obj(infoId, [`<< /Title (${pdfStr(title)}) /Creator (Marksheet Generator) /Producer (Marksheet Generator) /CreationDate (${ds}) >>`]);
+  const xref = len, size = infoId + 1;
+  let x = `xref\n0 ${size}\n0000000000 65535 f \n`;
+  for(let i=1;i<size;i++) x += String(offs[i]).padStart(10,'0') + ' 00000 n \n';
+  push(x + `trailer\n<< /Size ${size} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(chunks, {type:'application/pdf'});
+}
+
+async function makePage(s){
+  recalc(s);
+  const host = $('#render-host'); host.innerHTML = '';
+  const el = await renderClean(s, host);
+  const page = await domToPdfPage(el);
+  host.innerHTML = '';
+  return page;
+}
+async function makePdf(s){
+  unsupportedChars = false;
+  const page = await makePage(s);
+  const blob = await buildPdf([page], `${s.admNo} - ${s.name} - Marksheet`);
+  return {blob, unsupported: unsupportedChars};
+}
+
+/* =====================================================================
+   Saving: Chrome/Edge -> real folder (Marksheets/<Adm>/<Adm>.pdf)
+           other browsers -> download (single) or ZIP (all)
+   ===================================================================== */
+const FRAMED = (() => { try { return window.self !== window.top; } catch(e){ return true; } })();
+const HAS_PICKER = typeof window.showDirectoryPicker === 'function';
+let FS_OK = !IN_ARTIFACT && !FRAMED && HAS_PICKER;   // folder saving only works when the file is opened directly in Chrome/Edge
+let FS_BLOCKED = !IN_ARTIFACT && FRAMED && HAS_PICKER;
+const isFsBlock = e => e && (e.name === 'SecurityError' || e.name === 'NotAllowedError' && /frame|origin/i.test(e.message || ''));
+function blockFs(){
+  FS_OK = false; FS_BLOCKED = true; updateFolderInfo();
+  toast('This window cannot open a folder, so the PDF will download instead. To save straight into folders, open <b>Marksheet_Generator.html</b> directly in Chrome or Edge.', 'warn', 9000);
+}
+let rootDir = null, rootLabel = '';
+const idb = {
+  db: null,
+  open(){ if(this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej) => { const r = indexedDB.open('marksheet-generator', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => { this.db = r.result; res(r.result); }; r.onerror = () => rej(r.error); }); },
+  async get(key){ const db = await this.open(); return new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(key); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  async set(key, v){ const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('kv','readwrite'); t.objectStore('kv').put(v, key); t.oncomplete = () => res(); t.onerror = () => rej(t.error); }); }
+};
+function updateFolderInfo(){
+  const dot = $('#folderDot'), info = $('#folderInfo');
+  if(IN_ARTIFACT){
+    dot.className = 'dot ok';
+    info.innerHTML = 'PDFs are saved as <b>&lt;Adm No&gt;.pdf</b> through the download prompt';
+  } else if(FS_BLOCKED){
+    dot.className = 'dot';
+    info.innerHTML = 'Preview window: PDFs download instead of going into folders. Open <b>Marksheet_Generator.html</b> directly in Chrome / Edge to save into folders';
+    $('#btnFolder').style.display = 'none';
+  } else if(!FS_OK){
+    dot.className = 'dot';
+    info.innerHTML = 'This browser downloads PDFs (use <b>Chrome / Edge</b> for automatic folder saving)';
+    $('#btnFolder').style.display = 'none';
+  } else if(rootDir){
+    dot.className = 'dot ok';
+    info.innerHTML = `Saving to <b>${esc(rootLabel)}</b> / &lt;Adm No&gt; / &lt;Adm No&gt;.pdf`;
+    setLabel('#btnFolder', 'Change Folder');
+  } else {
+    dot.className = 'dot';
+    info.innerHTML = 'No save folder yet — you will be asked once on first save';
+    setLabel('#btnFolder', 'Choose Folder');
+  }
+}
+async function restoreFolder(){
+  if(!FS_OK) return updateFolderInfo();
+  try{ const h = await idb.get('root'); if(h){ rootDir = h; rootLabel = (await idb.get('rootLabel')) || h.name; } }catch(e){}
+  updateFolderInfo();
+}
+async function pickFolder(){
+  const h = await window.showDirectoryPicker({id:'marksheets', mode:'readwrite', startIn:'documents'});
+  if(h.name.toLowerCase() === 'marksheets'){ rootDir = h; rootLabel = h.name; }
+  else { rootDir = await h.getDirectoryHandle('Marksheets', {create:true}); rootLabel = h.name + ' / Marksheets'; }
+  try{ await idb.set('root', rootDir); await idb.set('rootLabel', rootLabel); }catch(e){}
+  updateFolderInfo();
+}
+async function ensureFolder(){
+  if(!rootDir) await pickFolder();
+  let p = 'granted';
+  if(rootDir.queryPermission) p = await rootDir.queryPermission({mode:'readwrite'});
+  if(p !== 'granted' && rootDir.requestPermission) p = await rootDir.requestPermission({mode:'readwrite'});
+  if(p !== 'granted') throw new Error('Permission to the folder was not given');
+}
+async function writeFile(dir, name, blob){
+  const fh = await dir.getFileHandle(name, {create:true});
+  const w = await fh.createWritable(); await w.write(blob); await w.close();
+}
+async function writeToFolder(adm, blob){
+  await writeFile(await rootDir.getDirectoryHandle(adm, {create:true}), adm + '.pdf', blob);
+}
+/* In the claude.ai viewer, files are offered through the "downloads" capability.
+   When the page is opened on its own (e.g. in Safari on a phone) that capability is
+   not there, so fall back to a normal browser download. */
+const dlReady = (IN_ARTIFACT && window.claude && typeof window.claude.use === 'function')
+  ? Promise.resolve(window.claude.use('downloads')).catch(() => null) : Promise.resolve(null);
+let dlCap;
+async function download(blob, name){
+  if(IN_ARTIFACT){
+    if(dlCap === undefined) dlCap = await dlReady;
+    if(dlCap){
+      try{ await dlCap.save({filename:name, data:blob}); return true; }
+      catch(e){
+        const c = e && e.code;
+        if(c === 'declined') return false;
+        if(c === 'rate_limited') throw new Error('another download prompt is still open — finish or close it, then try again');
+        if(['unavailable','not_granted','capability_disabled','capability_removed'].includes(c)) dlCap = null;   // use the browser download below
+        else throw new Error((e && e.message) || c || 'download failed');
+      }
+    }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 120000);   // iPhone may ask before it reads the file
+  return true;
+}
+$('#btnFolder').addEventListener('click', async () => {
+  try{ await pickFolder(); toast(`PDFs will be saved in <b>${esc(rootLabel)}</b>`, 'ok'); }
+  catch(e){ if(isFsBlock(e)) blockFs(); else if(e.name !== 'AbortError') toast('Could not use that folder: ' + esc(e.message), 'err'); }
+});
+
+function busy(on){ ['#btnSave','#btnSaveAll','#btnPrint','#btnImport'].forEach(s => $(s).disabled = on); }
+
+async function saveCurrent(){
+  const s = students[cur], adm = safeName(s.admNo);
+  if(!checkBeforeSave(cur)) return;
+  busy(true);
+  let retry = false;
+  try{
+    if(FS_OK) await ensureFolder();          // ask for folder first (needs the click)
+    const {blob, unsupported} = await makePdf(s);
+    if(FS_OK){ await writeToFolder(adm, blob); toast(`Saved <b>${esc(rootLabel)}/${esc(adm)}/${esc(adm)}.pdf</b>`, 'ok', 5000); }
+    else { const ok = await download(blob, adm + '.pdf'); toast(ok ? `Saved <b>${esc(adm)}.pdf</b>` : 'Download cancelled', ok ? 'ok' : ''); }
+    if(unsupported) toast('Some characters (e.g. Hindi script) cannot be drawn in the PDF. Use <b>Print → Save as PDF</b> for this student.', 'warn', 8000);
+  }catch(e){
+    if(isFsBlock(e) && FS_OK){ blockFs(); retry = true; }
+    else if(e.name === 'AbortError') toast('Save cancelled');
+    else { console.error(e); toast('Could not save: ' + esc(e.message || e), 'err', 7000); }
+  }finally{ busy(false); }
+  if(retry) return saveCurrent();
+}
+const ALL_DIR = 'All Marksheets', ALL_PDF = 'All_Marksheets.pdf';
+async function saveAll(mode){            // mode: 'separate' | 'combined'
+  const bad = students.map((s, i) => ({i, errs: validateStudent(i)})).filter(x => x.errs.length);
+  if(bad.length){
+    bad.forEach(x => showAllErrors.add(students[x.i]));
+    const lines = bad.slice(0, 4).map(x => `• <b>${esc(whoIs(students[x.i]) || 'Unnamed')}</b>: ${esc(x.errs[0].msg)}${x.errs.length > 1 ? ` (+${x.errs.length - 1} more)` : ''}`);
+    if(bad.length > 4) lines.push(`• …and ${bad.length - 4} more marksheets`);
+    toast(`<b>Nothing saved — ${bad.length} marksheet${bad.length>1?'s need':' needs'} fixing:</b><br>${lines.join('<br>')}<br>Showing the first one now.`, 'err', 12000);
+    cur = bad[0].i; saveState(true); render();
+    return;
+  }
+  const list = students.filter(s => safeName(s.admNo));
+  const skipped = students.length - list.length;
+  if(!list.length){ toast('No student has an Admission No. yet.', 'err'); return; }
+  const seen = new Set(), dups = new Set();
+  list.forEach(s => { const a = safeName(s.admNo).toLowerCase(); if(seen.has(a)) dups.add(s.admNo); seen.add(a); });
+  busy(true);
+  const prog = toast(`Generating 0 / ${list.length}…`, '', 600000);
+  let retry = false;
+  try{
+    if(FS_OK) await ensureFolder();       // needs the click, so ask first
+    let outDir = null;
+    if(FS_OK && mode === 'separate') outDir = await rootDir.getDirectoryHandle(ALL_DIR, {create:true});
+    const zipFiles = [], pages = [];
+    let i = 0;
+    unsupportedChars = false;
+    for(const s of list){
+      const adm = safeName(s.admNo);
+      if(mode === 'combined'){
+        pages.push(await makePage(s));
+      } else {
+        const page = await makePage(s);
+        const blob = await buildPdf([page], `${s.admNo} - ${s.name} - Marksheet`);
+        if(FS_OK) await writeFile(outDir, adm + '.pdf', blob);
+        else zipFiles.push({name:`Marksheets/${adm}.pdf`, data:new Uint8Array(await blob.arrayBuffer())});
+      }
+      prog.textContent = `Generating ${++i} / ${list.length}…`;
+      await sleep(0);
+    }
+    const n = list.length, nP = `${n} marksheet${n>1?'s':''}`;
+    if(mode === 'combined'){
+      prog.textContent = 'Joining pages…';
+      const blob = await buildPdf(pages, 'All Marksheets');
+      if(FS_OK){ await writeFile(rootDir, ALL_PDF, blob); toast(`Saved <b>${esc(rootLabel)}/${ALL_PDF}</b> — ${nP}, one per page`, 'ok', 6000); }
+      else if(await download(blob, ALL_PDF)) toast(`Saved <b>${ALL_PDF}</b> — ${nP}, one per page`, 'ok', 6000);
+      else { toast('Download cancelled'); return; }
+    } else {
+      if(FS_OK) toast(`Saved ${nP} in <b>${esc(rootLabel)}/${ALL_DIR}</b>`, 'ok', 6000);
+      else if(await download(makeZip(zipFiles), 'Marksheets.zip')) toast(`Saved <b>Marksheets.zip</b> — ${nP} in one folder`, 'ok', 6000);
+      else { toast('Download cancelled'); return; }
+    }
+    if(skipped) toast(`${skipped} marksheet${skipped>1?'s were':' was'} skipped (no Admission No.)`, 'warn', 6000);
+    if(dups.size && mode !== 'combined') toast(`Duplicate Admission No.: ${esc([...dups].join(', '))} — only one file was kept for it.`, 'warn', 8000);
+    if(unsupportedChars) toast('Some marksheets contain characters (e.g. Hindi script) that the PDF cannot draw.', 'warn', 8000);
+  }catch(e){
+    if(isFsBlock(e) && FS_OK){ blockFs(); retry = true; }
+    else if(e.name === 'AbortError') toast('Cancelled');
+    else { console.error(e); toast('Could not save: ' + esc(e.message || e), 'err', 7000); }
+  }finally{ prog.remove(); busy(false); }
+  if(retry) return saveAll(mode);
+}
+$('#btnSave').addEventListener('click', saveCurrent);
+$('#btnSaveAll').addEventListener('click', () => {
+  const p = $('#allPanel'); p.hidden = !p.hidden;
+  $('#allCount').textContent = String(students.filter(s => safeName(s.admNo)).length);
+});
+$('#allSeparate').addEventListener('click', () => { $('#allPanel').hidden = true; saveAll('separate'); });
+$('#allCombined').addEventListener('click', () => { $('#allPanel').hidden = true; saveAll('combined'); });
+$('#allCancel').addEventListener('click', () => { $('#allPanel').hidden = true; });
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's'){ e.preventDefault(); saveCurrent(); }
+});
+
+/* ---------- tiny ZIP writer (store) ---------- */
+const CRC_T = (() => { const t = new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let j=0;j<8;j++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n] = c>>>0; } return t; })();
+function crc32(b){ let c = 0xFFFFFFFF; for(let i=0;i<b.length;i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files){
+  const parts = [], cen = []; let off = 0;
+  for(const f of files){
+    const nm = new TextEncoder().encode(f.name), crc = crc32(f.data), sz = f.data.length;
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true);
+    h.setUint16(10,0,true); h.setUint16(12,0x21,true); h.setUint32(14,crc,true); h.setUint32(18,sz,true); h.setUint32(22,sz,true);
+    h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer), nm, f.data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true);
+    c.setUint16(12,0,true); c.setUint16(14,0x21,true); c.setUint32(16,crc,true); c.setUint32(20,sz,true); c.setUint32(24,sz,true);
+    c.setUint16(28,nm.length,true); c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer), nm);
+    off += 30 + nm.length + sz;
+  }
+  const cs = cen.reduce((a,b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true); e.setUint32(12,cs,true); e.setUint32(16,off,true);
+  return new Blob([...parts, ...cen, new Uint8Array(e.buffer)], {type:'application/zip'});
+}
+
+/* =====================================================================
+   Excel (.xlsx) import — built-in reader, works offline
+   ===================================================================== */
+async function unzip(buf){
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  let e = -1;
+  for(let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65600); i--) if(dv.getUint32(i, true) === 0x06054b50){ e = i; break; }
+  if(e < 0) throw new Error('not a valid .xlsx file');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true);
+  const files = {};
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p, true) !== 0x02014b50) break;
+    const method = dv.getUint16(p+10,true), csize = dv.getUint32(p+20,true);
+    const nlen = dv.getUint16(p+28,true), xlen = dv.getUint16(p+30,true), clen = dv.getUint16(p+32,true), loff = dv.getUint32(p+42,true);
+    const name = new TextDecoder().decode(u8.subarray(p+46, p+46+nlen));
+    const start = loff + 30 + dv.getUint16(loff+26,true) + dv.getUint16(loff+28,true);
+    files[name] = {method, data: u8.subarray(start, start + csize)};
+    p += 46 + nlen + xlen + clen;
+  }
+  const bytes = async name => {
+    const f = files[name]; if(!f) return null;
+    if(f.method === 0) return f.data;
+    if(f.method === 8){
+      const st = new Blob([f.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return new Uint8Array(await new Response(st).arrayBuffer());
+    }
+    throw new Error('unsupported compression');
+  };
+  return { names: Object.keys(files), bytes, text: async n => { const b = await bytes(n); return b ? new TextDecoder().decode(b) : null; } };
+}
+const xmlDoc = s => new DOMParser().parseFromString(s, 'application/xml');
+const tagsNS = (node, name) => Array.from(node.getElementsByTagNameNS('*', name));
+function colNum(letters){ let n = 0; for(const ch of letters) n = n*26 + (ch.charCodeAt(0) - 64); return n; }
+
+async function readWorkbook(buf){
+  const z = await unzip(buf);
+  const shared = [];
+  const ss = await z.text('xl/sharedStrings.xml');
+  if(ss) tagsNS(xmlDoc(ss), 'si').forEach(si => shared.push(tagsNS(si, 't').filter(t => !t.closest || !t.parentNode || t.parentNode.localName !== 'rPh').map(t => t.textContent).join('')));
+  const wb = xmlDoc(await z.text('xl/workbook.xml'));
+  const rels = {};
+  const relTxt = await z.text('xl/_rels/workbook.xml.rels');
+  if(relTxt) tagsNS(xmlDoc(relTxt), 'Relationship').forEach(r => rels[r.getAttribute('Id')] = r.getAttribute('Target'));
+  const sheets = [];
+  for(const sh of tagsNS(wb, 'sheet')){
+    const rid = sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    let target = rels[rid] || ''; if(!target) continue;
+    target = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+    const txt = await z.text(target); if(!txt) continue;
+    const grid = {};
+    for(const c of tagsNS(xmlDoc(txt), 'c')){
+      const ref = c.getAttribute('r'); const m = /^([A-Z]+)(\d+)$/.exec(ref || ''); if(!m) continue;
+      const t = c.getAttribute('t'); const vEl = tagsNS(c, 'v')[0]; const raw = vEl ? vEl.textContent : '';
+      let v;
+      if(t === 's') v = shared[+raw] ?? '';
+      else if(t === 'inlineStr') v = tagsNS(c, 't').map(x => x.textContent).join('');
+      else if(t === 'str' || t === 'e') v = raw;
+      else if(t === 'b') v = raw === '1' ? 'TRUE' : 'FALSE';
+      else v = raw === '' ? '' : Number(raw);
+      if(v === '' || v == null) continue;
+      const r = +m[2], col = colNum(m[1]);
+      (grid[r] = grid[r] || {})[col] = v;
+    }
+    sheets.push({name: sh.getAttribute('name'), grid});
+  }
+  let logo = null;
+  const media = z.names.filter(n => /^xl\/media\/.+\.(png|jpe?g|gif)$/i.test(n)).sort();
+  if(media.length){
+    const b = await z.bytes(media[0]); const ext = media[0].split('.').pop().toLowerCase();
+    const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+    let s = ''; for(let i=0;i<b.length;i++) s += String.fromCharCode(b[i]);
+    logo = `data:${mime};base64,${btoa(s)}`;
+  }
+  return {sheets, logo};
+}
+
+const norm = s => String(s).toLowerCase().replace(/\s+/g, ' ').trim();
+const tidy = s => String(s==null?'':s).replace(/\s+/g, ' ').replace(/\(\s+/g, '(').replace(/\s+\)/g, ')').replace(/(\w)\(/g, '$1 (').replace(/\s+,/g, ',').replace(/,(?=\S)/g, ', ').replace(/\bAttitutde\b/gi, 'Attitude').trim();
+function excelDate(v){
+  if(typeof v === 'number' && v > 0){
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+    return d.toISOString().slice(0, 10);
+  }
+  const s = String(v||'').trim();
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = /^(\d{1,2})[\/\-. ](\d{1,2})[\/\-. ](\d{2,4})$/.exec(s);
+  if(m){ let y = m[3]; if(y.length === 2) y = (+y > 50 ? '19' : '20') + y; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  return '';
+}
+const LABELS = [/^adm(ission)?\.?\s*no/i, /^student'?s?\s*name/i, /^date\s*of\s*birth|^d\.?\s*o\.?\s*b\.?\b/i, /^father'?s?\s*name/i, /^mother'?s?\s*name/i, /^class/i, /^roll\s*no/i, /^overall\s*grade/i, /^participated\s*in/i, /^remarks?/i, /^progress report/i];
+
+function extractRecords(grid){
+  const cells = [];
+  for(const r in grid) for(const c in grid[r]){ const v = grid[r][c]; const s = String(v).replace(/\s+/g, ' ').trim(); if(s) cells.push({r:+r, c:+c, v, s, t:norm(s)}); }
+  cells.sort((a, b) => a.r - b.r || a.c - b.c);
+  const at = (r, c) => (grid[r] && grid[r][c] != null) ? tidy(grid[r][c]) : '';
+  const isLabel = s => LABELS.some(re => re.test(s));
+
+  // ---- (A) list format: one header row, one student per row ----
+  const rowsMap = {}; cells.forEach(x => (rowsMap[x.r] = rowsMap[x.r] || []).push(x));
+  for(const r in rowsMap){
+    const row = rowsMap[r];
+    const admH = row.find(x => /^adm(ission)?\.?\s*no/.test(x.t));
+    const nameH = row.find(x => /^(student'?s?\s*)?name$/.test(x.t));
+    if(!admH || !nameH) continue;
+    const map = {};
+    const defs = {admNo:/^adm(ission)?\.?\s*no/, name:/^(student'?s?\s*)?name$/, dob:/^(date of birth|dob|d\.o\.b)/, father:/^father/, mother:/^mother/,
+      classSec:/^class/, rollNo:/^roll/, term:/^term$/, overall:/^overall/, participated:/^participat/, remarks:/^remark/};
+    row.forEach(x => { for(const k in defs) if(map[k] == null && defs[k].test(x.t)){ map[k] = x.c; x.used = true; break; } });
+    // grade columns: group (subject) comes from the row just above the header
+    const grp = {}; let last = '';
+    const maxC = Math.max(...row.map(x => x.c));
+    for(let c = 1; c <= maxC; c++){ const g = at(+r - 1, c); if(g) last = g; grp[c] = last; }
+    const subjOrder = [], subjMap = {}, cosCols = [];
+    const heads = {};
+    row.filter(x => !x.used).forEach(x => {
+      const g = grp[x.c] || '';
+      if(!g) return;
+      if(/^co-?\s*scholastic/i.test(g)){ cosCols.push({c:x.c, domain:tidy(x.s)}); return; }
+      if(/^(student|result|details?)\b/i.test(g)) return;
+      const key = norm(g);
+      const S = subjMap[key] || (subjMap[key] = {name:tidy(g).toUpperCase(), parts:[], partMap:{}, totalC:null});
+      if(!subjOrder.includes(key)) subjOrder.push(key);
+      if(/^(total|grade|overall)$/.test(x.t)){ S.totalC = x.c; return; }
+      const m = /^(.*?)[\s\-–|:]*\b(fa\s*\d*|sa\s*\d*|term\s*\d*)$/i.exec(x.s);
+      if(!m) return;
+      const pn = tidy(m[1]) || 'Grade', kind = /^fa/i.test(m[2]) ? 'fa' : /^sa/i.test(m[2]) ? 'sa' : 'term';
+      if(kind !== 'term' && !heads[kind]) heads[kind] = m[2].toUpperCase().replace(/\s+/g, '');
+      let P = S.partMap[norm(pn)];
+      if(!P){ P = S.partMap[norm(pn)] = {name:pn, cols:{}}; S.parts.push(P); }
+      P.cols[kind] = x.c;
+    });
+    const out = [];
+    let empty = 0;
+    for(let rr = +r + 1; rr <= +r + 3000 && empty < 5; rr++){
+      if(!grid[rr]){ empty++; continue; }
+      empty = 0;
+      const val = c => (c != null && grid[rr][c] != null) ? tidy(grid[rr][c]) : '';
+      const rec = blankFrom(students[cur] || SEED);
+      for(const k in map){ const v = grid[rr][map[k]]; if(v != null) rec[k] = k === 'dob' ? excelDate(v) : tidy(v); }
+      if(!rec.admNo && !rec.name) continue;
+      rec.overall = (rec.overall || '').toUpperCase();
+      if(subjOrder.length){
+        rec.subjects = subjOrder.map(k => { const S = subjMap[k]; return {
+          name: S.name,
+          parts: S.parts.map(P => ({name:P.name, fa:val(P.cols.fa).toUpperCase(), sa:val(P.cols.sa).toUpperCase(), term:val(P.cols.term).toUpperCase()})),
+          total: val(S.totalC).toUpperCase() }; });
+      }
+      if(cosCols.length) rec.cos = cosCols.map(x => ({domain:x.domain, grade:val(x.c).toUpperCase()}));
+      if(heads.fa) rec.heads.fa = heads.fa;
+      if(heads.sa) rec.heads.sa = heads.sa;
+      out.push(rec);
+    }
+    out.list = true;
+    return out;
+  }
+
+  // ---- (B) report-card format (like the reference sheet) ----
+  const find = re => cells.find(x => re.test(x.s));
+  const valueOf = re => {
+    const cell = find(re); if(!cell) return null;
+    const m = cell.s.match(re);
+    const rest = cell.s.slice(m.index + m[0].length).replace(/^[\s:\-–.]+/, '').trim();
+    if(rest) return rest;
+    const right = cells.find(x => x.r === cell.r && x.c > cell.c);
+    if(right && !isLabel(right.s)) return right.v;
+    const below = cells.find(x => x.r > cell.r && x.r <= cell.r + 2 && x.c >= cell.c && !isLabel(x.s));
+    return below ? below.v : '';
+  };
+  const adm = valueOf(/^adm(ission)?\.?\s*no\.?/i);
+  if(adm == null) return [];
+  const rec = blankFrom(SEED);
+  rec.admNo = tidy(adm);
+  rec.name = tidy(valueOf(/^student'?s?\s*name/i) || '');
+  rec.dob = excelDate(valueOf(/^date\s*of\s*birth|^d\.?\s*o\.?\s*b\.?/i) || '');
+  rec.father = tidy(valueOf(/^father'?s?\s*name/i) || '');
+  rec.mother = tidy(valueOf(/^mother'?s?\s*name/i) || '');
+  rec.classSec = tidy(valueOf(/^class(\s*[\/&]\s*sec(tion)?)?/i) || '');
+  rec.rollNo = tidy(valueOf(/^roll\s*no\.?/i) || '');
+  rec.overall = tidy(valueOf(/^overall\s*grade/i) || '').toUpperCase();
+  rec.participated = tidy(valueOf(/^participated\s*in/i) || '');
+  rec.remarks = tidy(valueOf(/^remarks?/i) || '');
+  const term = valueOf(/^progress report of/i); if(term) rec.term = tidy(term);
+
+  // scholastic grades
+  const fa = cells.find(x => /^fa\s*\d$/.test(x.t));
+  if(fa){
+    const sa = cells.find(x => x.r === fa.r && /^sa\s*\d$/.test(x.t));
+    const tm = cells.find(x => x.r === fa.r && x.c > (sa ? sa.c : fa.c));
+    const faC = fa.c, saC = sa ? sa.c : fa.c + 1, tmC = tm ? tm.c : saC + 1;
+    rec.heads = {fa:fa.s, sa:sa ? sa.s : 'SA1', term: tm ? tidy(tm.s).replace(/\s*=\s*/, ' = ') : 'TERM',
+      faMax: at(fa.r+1, faC), saMax: at(fa.r+1, saC), termMax: at(fa.r+1, tmC)};
+    const sch = cells.find(x => /^scholastic area/.test(x.t));
+    const codeC = sch ? sch.c : 1, nameC = codeC + 1;
+    const ov = cells.find(x => /^overall\s*grade/.test(x.t));
+    const endR = ov ? ov.r - 1 : Math.max(...cells.map(x => x.r));
+    const subjects = []; let curS = null;
+    for(let r = fa.r + 1; r <= endR; r++){
+      const a = at(r, codeC), b = at(r, nameC); if(!b) continue;
+      const bn = norm(b);
+      if(/^[a-z]$/i.test(a) || !curS){ curS = {name:b, parts:[], total:at(r, tmC).toUpperCase()}; subjects.push(curS); }
+      else if(bn === 'total' || bn === 'grand total') curS.total = at(r, tmC).toUpperCase();
+      else curS.parts.push({name:b, fa:at(r, faC).toUpperCase(), sa:at(r, saC).toUpperCase(), term:at(r, tmC).toUpperCase()});
+    }
+    if(subjects.length) rec.subjects = subjects;
+  }
+  // co-scholastic
+  const dom = cells.find(x => x.t === 'domains' || x.t === 'domain');
+  if(dom){
+    const gH = cells.find(x => x.r === dom.r && x.c > dom.c && x.t === 'grade');
+    const gC = gH ? gH.c : dom.c + 4;
+    const cos = [];
+    for(let r = dom.r + 1; r < dom.r + 30; r++){
+      const rc = cells.filter(x => x.r === r && x.c >= dom.c && x.c < gC);
+      if(!rc.length || rc.some(x => x.t === 'grade')) break;
+      const nm = rc.reduce((a, b) => b.s.length > a.s.length ? b : a);
+      cos.push({domain: tidy(nm.s), grade: at(r, gC).toUpperCase()});
+    }
+    if(cos.length) rec.cos = cos;
+  }
+  return [rec];
+}
+function extractSettings(grid){
+  const cells = [];
+  for(const r in grid) for(const c in grid[r]){ const s = String(grid[r][c]).replace(/\s+/g, ' ').trim(); if(s) cells.push({r:+r, c:+c, s, t:norm(s)}); }
+  const out = {};
+  const co = cells.find(x => /^co-?\s*scholastic/.test(x.t));
+  if(co){ const m = /\(.*\)/.exec(co.s); out.cosTitle = tidy(co.s.replace(/\(.*\)/, '')).toUpperCase(); if(m) out.cosSub = tidy(m[0]); }
+  const gh = cells.find(x => x.t === 'grade' && cells.some(y => y.r === x.r && y.t === 'marks') && cells.some(y => y.r === x.r && y.t === 'scale'));
+  if(gh){
+    const mC = cells.find(y => y.r === gh.r && y.t === 'marks').c, sC = cells.find(y => y.r === gh.r && y.t === 'scale').c;
+    const at = (r, c) => { const x = cells.find(z => z.r === r && z.c === c); return x ? tidy(x.s) : ''; };
+    const scale = [];
+    for(let r = gh.r + 1; r < gh.r + 20; r++){
+      const g = at(r, gh.c), m = at(r, mC), s = at(r, sC);
+      if(!g && !m && !s) break;
+      scale.push({grade:g.toUpperCase(), marks:m, scale:s.replace(/\s*-\s*/, ' - ').replace(/(\d)\s*%/g, '$1%').replace(/^(\d+) - (\d+%)$/, '$1% - $2').replace(/^below/i, 'Below')});
+    }
+    if(scale.length) out.scale = scale;
+  }
+  // school name / trust line = first two text cells at the top
+  const top = cells.filter(x => x.r <= 3).sort((a, b) => a.r - b.r || a.c - b.c);
+  if(top[0] && !LABELS.some(re => re.test(top[0].s))) out.school = top[0].s;
+  if(top[1] && !LABELS.some(re => re.test(top[1].s))) out.trust = top[1].s.replace(/:\s*-\s*/, ':- ').replace(/:-(?=\S)/, ':- ');
+  return out;
+}
+
+async function importFiles(files){
+  busy(true);
+  let added = 0, updated = 0, bad = [], firstIdx = -1;
+  const seenAdm = new Set(), dupRows = new Set();
+  try{
+    // if the only record is the untouched demo student, replace it
+    const onlyDemo = students.length === 1 && JSON.stringify(students[0]) === JSON.stringify(normStudent(SEED));
+    if(onlyDemo) students = [];
+    for(const f of files){
+      if(!/\.xlsx$/i.test(f.name)){ bad.push(f.name + ' (save it as .xlsx)'); continue; }
+      try{
+        const wb = await readWorkbook(await f.arrayBuffer());
+        let got = 0;
+        for(const sh of wb.sheets){
+          const recs = extractRecords(sh.grid);
+          if(recs.length && !recs.list && got === 0 && added + updated === 0) Object.assign(settings, extractSettings(sh.grid));
+          for(const r of recs){
+            got++;
+            if(r.admNo){ const kk = keyOf(r.admNo); if(seenAdm.has(kk)) dupRows.add(r.admNo); seenAdm.add(kk); }
+            const i = r.admNo ? students.findIndex(s => norm(s.admNo) === norm(r.admNo)) : -1;
+            if(i >= 0){ students[i] = r; updated++; if(firstIdx < 0) firstIdx = i; }
+            else { students.push(r); added++; if(firstIdx < 0) firstIdx = students.length - 1; }
+          }
+        }
+        if(!got) bad.push(f.name + ' (no student data found)');
+        else if(wb.logo) settings.logo = wb.logo;
+      }catch(e){ console.error(e); bad.push(f.name + ' (' + e.message + ')'); }
+    }
+    if(!students.length) students = [clone(SEED)];
+    students.forEach(normalizeGrades);
+    students.forEach(recalc);
+    if(firstIdx >= 0) cur = firstIdx;
+    saveState(true); render();
+    if(added || updated) toast(`Imported: ${added} new, ${updated} updated`, 'ok');
+    if(dupRows.size) toast(`Admission No. repeated in the Excel: <b>${esc([...dupRows].join(', '))}</b> — only the last row was kept. Please check the file.`, 'err', 10000);
+    const rollDup = students.map((s, i) => validateStudent(i).find(e => e.k === 'rollNo' && e.kind === 'dup')).filter(Boolean);
+    if(rollDup.length) toast(`<b>Duplicate Roll No. found:</b><br>${errorList(rollDup, 4)}`, 'err', 10000);
+    if(bad.length) toast('Could not import: ' + esc(bad.join('; ')), 'err', 8000);
+  }finally{ busy(false); }
+}
+
+/* =====================================================================
+   Start
+   ===================================================================== */
+loadState();
+$('#autoCalc').checked = AUTO();
+$('#autoCalc').addEventListener('change', e => {
+  settings.autoCalc = e.target.checked;
+  if(AUTO()) students.forEach(recalc);
+  saveState(true); render();
+  toast(AUTO() ? 'TERM 1, TOTAL and Overall Grade are now calculated automatically' : 'Auto-calculation off — you can type TERM 1, TOTAL and Overall Grade yourself');
+});
+render();
+restoreFolder();
+saveState(true);
+</script>
+</body>
+</html>
